@@ -5,5 +5,5 @@ void do_math(int *x) {
 int main(void) {
   int result = -1, val = 4;
   do_math(&val);
-  return result;
+  {return result;} 
 }

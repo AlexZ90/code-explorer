@@ -1,0 +1,74 @@
+---
+MainSourceFile:  /home/pavel/Downloads/llvm/tools/clang/tools/example/test/./src/test.cpp
+Diagnostics:     
+  - DiagnosticName:  llvm-header-guard
+    Replacements:    
+      - FilePath:        include/test.h
+        Offset:          0
+        Length:          0
+        ReplacementText: '#ifndef TEST_H
+#define TEST_H
+
+'
+      - FilePath:        include/test.h
+        Offset:          261
+        Length:          0
+        ReplacementText: '
+#endif
+'
+  - DiagnosticName:  hicpp-use-equals-default
+    Replacements:    
+      - FilePath:        include/test.h
+        Offset:          93
+        Length:          2
+        ReplacementText: '= default;'
+  - DiagnosticName:  readability-braces-around-statements
+    Replacements:    
+      - FilePath:        include/test.h
+        Offset:          134
+        Length:          0
+        ReplacementText: ' {'
+      - FilePath:        include/test.h
+        Offset:          145
+        Length:          0
+        ReplacementText: '} '
+  - DiagnosticName:  readability-else-after-return
+    Replacements:    
+      - FilePath:        include/test.h
+        Offset:          145
+        Length:          5
+        ReplacementText: ''
+  - DiagnosticName:  readability-braces-around-statements
+    Replacements:    
+      - FilePath:        include/test.h
+        Offset:          149
+        Length:          0
+        ReplacementText: ' {'
+      - FilePath:        include/test.h
+        Offset:          159
+        Length:          0
+        ReplacementText: '
+}'
+  - DiagnosticName:  misc-unused-parameters
+    Replacements:    
+      - FilePath:        include/test.h
+        Offset:          184
+        Length:          1
+        ReplacementText: ' /*a*/'
+  - DiagnosticName:  misc-unused-parameters
+    Replacements:    
+      - FilePath:        include/test.h
+        Offset:          191
+        Length:          1
+        ReplacementText: ' /*b*/'
+  - DiagnosticName:  readability-implicit-bool-cast
+    Replacements:    
+      - FilePath:        include/test.h
+        Offset:          251
+        Length:          1
+        ReplacementText: ''
+      - FilePath:        include/test.h
+        Offset:          255
+        Length:          0
+        ReplacementText: ' == 0u'
+...

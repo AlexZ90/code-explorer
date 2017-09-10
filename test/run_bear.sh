@@ -1,0 +1,1 @@
+bear -o ./compile_commands.json make 
