@@ -106,13 +106,10 @@ public:
 
         clang::SourceManager &sm = rewriter.getSourceMgr();
 
-
-
         //if (funcName == "do_math")
         {
-            if (func->isThisDeclarationADefinition ())
+            if (func->isThisDeclarationADefinition () && func->hasBody())
             {
-
                 filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(func->getBody()->getLocStart()));
 
 //                idString = filePath + " " + func->getQualifiedNameAsString() + " ";
@@ -128,16 +125,13 @@ public:
 
 
                 //file_processed = find_string(idString, processed_files);
-
                 SourceLocation startPattern = func->getBody()->getLocStart();
 //                SourceLocation endPattern = func->getBody()->getLocStart().getLocWithOffset(10);
                 SourceLocation endPattern = func->getBody()->getLocStart().getLocWithOffset(14);
                 CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(startPattern,endPattern);
-
                 std::string patternLine = Lexer::getSourceText(charSourceRange,rewriter.getSourceMgr(),rewriter.getLangOpts());
 
 //                DEBUG_PRINT (std::string("pattern "  + patternLine + "\n\r").c_str());
-
                 if (patternLine.find("DEFBEG") != std::string::npos)
                 {
                 	file_processed = 1;
@@ -145,7 +139,6 @@ public:
 
 
                 //std::cout << filePath << "**\n" ;
-
                 if ((filePath.find(dirPath) == 0) && (file_processed == 0)) //is in directory and not processed yet
                 {
 //                	DEBUG_PRINT (std::string("rw "  + filePath + "\n\r").c_str());
@@ -178,7 +171,6 @@ public:
 
     virtual bool VisitStmt(Stmt *st) {
          if (ReturnStmt *ret = dyn_cast<ReturnStmt>(st)) {
-
         	 clang::SourceManager &sm = rewriter.getSourceMgr();
         	 std::string filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(sm.getSpellingLoc(ret->getLocStart())));
 
@@ -391,7 +383,7 @@ int main(int argc, const char **argv) {
 //	}
 
     // create a new Clang Tool instance (a LibTooling environment)
-    std::cout << "* " << argv[1] << "* " << "\n\r";
+    errs() << "* " << argv[1] << "* " << "\n\r";
 	ClangTool Tool(*cdb, std::string(argv[1]));
 //    ClangTool Tool(*cdb, files.at(i));
 //	RefactoringTool Tool(*cdb, std::string(argv[1]));
@@ -433,6 +425,7 @@ int main(int argc, const char **argv) {
     //rewriter.getEditBuffer(rewriter.getSourceMgr().getMainFileID()).write(errs());
     //if (rewrite_enable)
 	//	rewriter.overwriteChangedFiles();
+    errs() << "End Tool \n\r";
     return result;
 }
     
