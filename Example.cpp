@@ -23,6 +23,9 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include <unordered_map>
+
+#include "Rplsmt.h"
 
 using namespace std;
 using namespace clang;
@@ -35,6 +38,9 @@ int numFunctions = 0;
 std::string fileName;
 std::string dirPath;
 bool rewrite_enable = false;
+
+#define RPLSMTS_CONTAINER_TYPE std::unordered_map<std::string, std::vector<Rplsmt>>
+RPLSMTS_CONTAINER_TYPE replacements;
 
 #define DEBUG_PRINT_EXAMPLE 1
 
@@ -146,14 +152,19 @@ public:
                     if (braceLoc.isValid())
                     {
                     		//rewriter.InsertTextAfter(braceLoc, " /*DEFBEG_777*/ ");
-                    		DEBUG_PRINT (std::string(filePath + " B " + std::to_string(sm.getFileOffset(sm.getSpellingLoc(braceLoc))) + "\n\r").c_str());
+                    		long int pos = sm.getFileOffset(sm.getSpellingLoc(braceLoc));
+                    		DEBUG_PRINT (std::string(filePath + " B " + std::to_string(pos) + "\n\r").c_str());
+                    		replacements[filePath].push_back(Rplsmt(pos,"B"));
                     }
                     else
                     	DEBUG_PRINT ("braceLoc is invalid=\n\r");
 //                    if (sm.isInMainFile(func->getDefinition()->getBodyRBrace()))
                         //rewriter.InsertTextAfter(func->getDefinition()->getBodyRbrace(), " DEFEND_777 ");
 					//rewriter.InsertTextAfter(func->getBody()->getLocEnd(), " /*DEFEND_777*/ ");
-					DEBUG_PRINT (std::string(filePath + " E " + std::to_string(sm.getFileOffset(sm.getSpellingLoc(func->getBody()->getLocEnd()))) + "\n\r").c_str());
+                    long int pos = sm.getFileOffset(sm.getSpellingLoc(func->getBody()->getLocEnd()));
+					DEBUG_PRINT (std::string(filePath + " E " + std::to_string(pos) + "\n\r").c_str());
+					replacements[filePath].push_back(Rplsmt(pos,"E"));
+
 //					rewriter.InsertTextAfter(func->getBody()->getLocEnd(), "");
 
 //					if (rewrite_enable) rewriter.overwriteChangedFiles();
@@ -218,7 +229,9 @@ public:
         	 {
 //        		 rewriter.InsertTextAfter(sm.getSpellingLoc(ret->getLocStart()), "/*DRS7*/ ");
 //        		 rewriter.InsertTextBefore(returnSemiLoc, " /*DRE7*/ ");
-        		 DEBUG_PRINT (std::string(filePath + " R " + std::to_string(sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc))) + "\n\r").c_str());
+                 long int pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc));
+        		 DEBUG_PRINT (std::string(filePath + " R " + std::to_string(pos) + "\n\r").c_str());
+        		 replacements[filePath].push_back(Rplsmt(pos,"R"));
         		 //rewriter.InsertTextAfter(sm.getSpellingLoc(returnSemiLoc), " /*DRS7*/ ");
 //        		         		 rewriter.InsertTextBefore(returnSemiLoc, "");
 //        		 if (rewrite_enable) rewriter.overwriteChangedFiles();
@@ -425,6 +438,19 @@ int main(int argc, const char **argv) {
     //rewriter.getEditBuffer(rewriter.getSourceMgr().getMainFileID()).write(errs());
     //if (rewrite_enable)
 	//	rewriter.overwriteChangedFiles();
+
+
+    for (RPLSMTS_CONTAINER_TYPE::iterator it = replacements.begin(); it != replacements.end(); ++it)
+    {
+    	errs() << "**" << (*it).first << "**" << "\n\r";
+    	std::vector<Rplsmt> rplsmtsList = (*it).second;
+    	std::sort(rplsmtsList.begin(),rplsmtsList.end(),Rplsmt::rplsmtSmallerOrEqual);
+    	for (auto i = 0; i < rplsmtsList.size(); i++)
+    	{
+    		std::cout << rplsmtsList.at(i) << "\n\r";
+    	}
+    }
+
     errs() << "End Tool \n\r";
     return result;
 }

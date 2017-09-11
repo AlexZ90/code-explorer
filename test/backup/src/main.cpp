@@ -1,5 +1,5 @@
 /*
- * Copyright © 2013 Marek 
+ * Copyright © 2013 Marek
  */
 #include "test.h"
 #include <stdio.h>

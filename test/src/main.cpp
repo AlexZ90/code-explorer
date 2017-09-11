@@ -4,7 +4,7 @@
 #define DRE7 } 
 #define DRS7 { DEFEND_777 
 /*
- * Copyright © 2013 Marek 
+ * Copyright © 2013 Marek
  */
 #include "test.h"
 #include <stdio.h>

@@ -5,7 +5,8 @@ set(
 
 add_clang_executable(
  example 
- Example.cpp)
+ Example.cpp
+ Rplsmt.cpp)
 
 target_link_libraries(
  example
