@@ -1,7 +1,8 @@
 #include "foo.h"
-#define EXPR_1 ; 
 
-void foo ()
+#define EXPR_1  return ;
+
+TYPE foo ()
 { 
 
 	int a = 1;
@@ -21,4 +22,4 @@ void foo ()
 	}
 
 	bar();
-	 return EXPR_1}
+	 EXPR_1}

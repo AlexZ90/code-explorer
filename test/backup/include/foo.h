@@ -1,3 +1,4 @@
 #include "bar.h"
+#define TYPE void
 
-void foo();
+TYPE foo();

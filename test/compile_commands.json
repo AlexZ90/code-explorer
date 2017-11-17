@@ -1,15 +1,17 @@
 [
     {
         "arguments": [
-            "c++", 
+            "cc", 
             "-c", 
+            "-fPIC", 
+            "--shared", 
             "-Iinclude", 
             "-o", 
-            "test", 
-            "src/test.cpp"
+            "lib/libbar.so", 
+            "src/bar.c"
         ], 
-        "directory": "/home/pavel/Downloads/llvm/tools/clang/tools/example/test", 
-        "file": "src/test.cpp"
+        "directory": "/home/alex/Downloads/llvm/tools/clang/tools/example/test", 
+        "file": "src/bar.c"
     }, 
     {
         "arguments": [
@@ -20,8 +22,20 @@
             "test", 
             "src/main.cpp"
         ], 
-        "directory": "/home/pavel/Downloads/llvm/tools/clang/tools/example/test", 
+        "directory": "/home/alex/Downloads/llvm/tools/clang/tools/example/test", 
         "file": "src/main.cpp"
+    }, 
+    {
+        "arguments": [
+            "c++", 
+            "-c", 
+            "-Iinclude", 
+            "-o", 
+            "test", 
+            "src/test.cpp"
+        ], 
+        "directory": "/home/alex/Downloads/llvm/tools/clang/tools/example/test", 
+        "file": "src/test.cpp"
     }, 
     {
         "arguments": [
@@ -34,21 +48,7 @@
             "lib/libfoo.so", 
             "src/foo.c"
         ], 
-        "directory": "/home/pavel/Downloads/llvm/tools/clang/tools/example/test", 
+        "directory": "/home/alex/Downloads/llvm/tools/clang/tools/example/test", 
         "file": "src/foo.c"
-    }, 
-    {
-        "arguments": [
-            "cc", 
-            "-c", 
-            "-fPIC", 
-            "--shared", 
-            "-Iinclude", 
-            "-o", 
-            "lib/libbar.so", 
-            "src/bar.c"
-        ], 
-        "directory": "/home/pavel/Downloads/llvm/tools/clang/tools/example/test", 
-        "file": "src/bar.c"
     }
 ]

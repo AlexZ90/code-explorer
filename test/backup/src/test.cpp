@@ -4,5 +4,5 @@ int
 A::hello()
 {
 	foo();     
-	return 1;
+	return 123 ;
 }

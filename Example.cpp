@@ -18,12 +18,14 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Tooling/CompilationDatabase.h"
 #include "llvm/Support/Path.h"
+#include "clang/Parse/Parser.h"
 #include <iostream>
 #include <string>
 #include <vector>
 #include <fstream>
 #include <algorithm>
 #include <unordered_map>
+#include <stdio.h>
 
 #include "Rplsmt.h"
 
@@ -38,11 +40,12 @@ int numFunctions = 0;
 std::string fileName;
 std::string dirPath;
 bool rewrite_enable = false;
+std::string replacementsPath = "./replacements.txt";
 
 #define RPLSMTS_CONTAINER_TYPE std::unordered_map<std::string, std::vector<Rplsmt>>
 RPLSMTS_CONTAINER_TYPE replacements;
 
-#define DEBUG_PRINT_EXAMPLE 1
+#define DEBUG_PRINT_EXAMPLE 0
 
 #if defined(DEBUG_PRINT_EXAMPLE) && DEBUG_PRINT_EXAMPLE>0
 	#define DEBUG_PRINT(...) fprintf (stderr,__VA_ARGS__)
@@ -61,7 +64,54 @@ int find_string (std::string &str, std::vector<std::string> &vector)
     return 0;
 }
 
+SourceLocation findSemiAfterLocation(SourceLocation loc,
+                                            ASTContext &Ctx,
+                                            bool IsDecl) {
+  SourceManager &SM = Ctx.getSourceManager();
+  if (loc.isMacroID()) {
+	//std::cout << __func__ << " " << __LINE__ << std::endl;
+    if (!Lexer::isAtEndOfMacroExpansion(loc, SM, Ctx.getLangOpts(), &loc))
+    {
+    	//std::cout << __func__ << " " << __LINE__ << std::endl;
+      return SourceLocation();
+    }
+  }
+  loc = Lexer::getLocForEndOfToken(loc, /*Offset=*/0, SM, Ctx.getLangOpts());
 
+  // Break down the source location.
+  std::pair<FileID, unsigned> locInfo = SM.getDecomposedLoc(loc);
+
+  // Try to load the file buffer.
+  bool invalidTemp = false;
+  StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
+  if (invalidTemp)
+    return SourceLocation();
+
+  const char *tokenBegin = file.data() + locInfo.second;
+
+  // Lex from the start of the given location.
+  Lexer lexer(SM.getLocForStartOfFile(locInfo.first),
+              Ctx.getLangOpts(),
+              file.begin(), tokenBegin, file.end());
+  Token tok;
+  lexer.LexFromRawLexer(tok);
+  if (tok.isNot(tok::semi)) {
+	  //std::cout << __func__ << " " << __LINE__ << std::endl;
+	if (!IsDecl)
+	{
+	  //if (std::string(tok.getName())=="rawIdentifier")
+	  return tok.getLocation().getLocWithOffset(tok.getRawIdentifier().str().size()); //return raw identifier end
+	  //return SourceLocation();
+	}
+    	
+    // Declaration may be followed with other tokens; such as an __attribute,
+    // before ending with a semicolon.
+    //std::cout << __func__ << " " << __LINE__ << std::endl;
+    return findSemiAfterLocation(tok.getLocation(), Ctx, /*IsDecl*/true);
+  }
+
+  return tok.getLocation();
+}
 
 // Make the Path absolute using the current working directory of the given
 // SourceManager if the Path is not an absolute path.
@@ -161,6 +211,7 @@ public:
 //                    if (sm.isInMainFile(func->getDefinition()->getBodyRBrace()))
                         //rewriter.InsertTextAfter(func->getDefinition()->getBodyRbrace(), " DEFEND_777 ");
 					//rewriter.InsertTextAfter(func->getBody()->getLocEnd(), " /*DEFEND_777*/ ");
+                    
                     long int pos = sm.getFileOffset(sm.getSpellingLoc(func->getBody()->getLocEnd()));
 					DEBUG_PRINT (std::string(filePath + " E " + std::to_string(pos) + "\n\r").c_str());
 					replacements[filePath].push_back(Rplsmt(pos,"E"));
@@ -190,27 +241,41 @@ public:
 
         	 Expr* retExpr = ret->getRetValue();
         	 SourceLocation retExprEndLoc;
-//        	 if (retExpr != NULL)
-//        	 {
-//        		 retExprEndLoc = sm.getSpellingLoc(retExpr->getLocEnd());
-//        	 }
-//        	 else
-//        	 {
-//        		 retExprEndLoc = sm.getSpellingLoc(ret->getLocEnd());
-//        	 }
+             bool returnVoid = false;
+
+           	 if (retExpr != NULL)
+           	 {
+           		 //std::cout << (retExpr->getType()).getAsString() << std::endl;
+                 if ((retExpr->getType()).getAsString() != "")
+                 {
+                    //std::cout << "ret not Void" << std::endl;
+                    returnVoid = false;
+                }
+                 else
+                 {
+                    //std::cout << "ret void" << std::endl;
+                    returnVoid = true;
+                }
+           	 }
+           	 else
+           	 {
+                 //std::cout << "retExpr = NULL" << std::endl;
+                 returnVoid = true;
+           	 }
 
         	 retExprEndLoc = sm.getSpellingLoc(ret->getLocEnd());
 
         	 int  file_processed = 0;
-        	 SourceLocation startPattern = sm.getSpellingLoc(ret->getLocEnd()).getLocWithOffset(10);
-//             SourceLocation startPattern = sm.getSpellingLoc(ret->getLocStart()).getLocWithOffset(-6);
+        	 SourceLocation startPattern = sm.getSpellingLoc(ret->getLocEnd()).getLocWithOffset(0);
+        	 //             SourceLocation startPattern = sm.getSpellingLoc(ret->getLocStart()).getLocWithOffset(-6);
 //             SourceLocation startPattern = sm.getSpellingLoc(ret->getLocStart()).getLocWithOffset(-10);
-			 SourceLocation endPattern = sm.getSpellingLoc(ret->getLocStart());
-			 CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(endPattern,startPattern);
-//			 CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(startPattern,endPattern);
+			 SourceLocation endPattern = sm.getSpellingLoc(ret->getLocEnd()).getLocWithOffset(10);
+			 //CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(endPattern,startPattern);
+			 CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(startPattern,endPattern);
 
 			 std::string patternLine = Lexer::getSourceText(charSourceRange,rewriter.getSourceMgr(),rewriter.getLangOpts());
-
+			 //std::cout << "\r\n" << patternLine << std::endl;
+			 
 			 //SourceRange sourceRange = clang::SourceRange(endPattern,startPattern);
 			 //std::string patternLine = rewriter.getRewrittenText(sourceRange);
 
@@ -220,6 +285,8 @@ public:
 			 {
 				file_processed = 1;
 			 }
+			 
+			 //std::cout << sm.getFileOffset(sm.getExpansionLoc(ret->getLocEnd()).getLocWithOffset(0)) << " " << sm.getFileOffset(sm.getExpansionLoc(ret->getLocStart()).getLocWithOffset(0)) << std::endl;
 
 
         	 //SourceLocation returnSemiLoc  = sm.getSpellingLoc(Lexer::findLocationAfterToken(retExprEndLoc,clang::tok::TokenKind::semi,rewriter.getSourceMgr(), rewriter.getLangOpts(),false));
@@ -230,8 +297,40 @@ public:
 //        		 rewriter.InsertTextAfter(sm.getSpellingLoc(ret->getLocStart()), "/*DRS7*/ ");
 //        		 rewriter.InsertTextBefore(returnSemiLoc, " /*DRE7*/ ");
                  long int pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc));
-        		 DEBUG_PRINT (std::string(filePath + " R " + std::to_string(pos) + "\n\r").c_str());
-        		 replacements[filePath].push_back(Rplsmt(pos,"R"));
+
+        		 if (returnVoid == false)
+        		 {
+        			 //std::cout << sm.getFileOffset(findSemiAfterLocation(ret->getLocStart(), *(this->astContext),false)) << std::endl;
+        			 DEBUG_PRINT (std::string(filePath + " R1 " + std::to_string(pos) + "\n\r").c_str());
+        			 replacements[filePath].push_back(Rplsmt(pos,"R1"));
+        		 }
+        		 else
+        		 {
+        			 returnSemiLoc = sm.getSpellingLoc(ret->getLocStart());
+        			 pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc));
+
+        			 DEBUG_PRINT (std::string(filePath + " R2 " + std::to_string(pos) + "\n\r").c_str());
+        			 replacements[filePath].push_back(Rplsmt(pos,"R2"));
+
+        			 replacements[filePath].push_back(Rplsmt(pos,"R2"));
+
+        			 returnSemiLoc = sm.getSpellingLoc(findSemiAfterLocation(ret->getLocEnd(), *(this->astContext),false));
+        			 pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc).getLocWithOffset(1));
+
+        			 DEBUG_PRINT (std::string(filePath + " R3 " + std::to_string(pos) + "\n\r").c_str());
+        			 replacements[filePath].push_back(Rplsmt(pos,"R3"));
+
+//        			 std::cout << sm.getFileOffset(sm.getExpansionLoc(findSemiAfterLocation(ret->getLocEnd(), *(this->astContext),false))) << std::endl;
+
+        			 
+//        			 if (ret->getLocEnd().isMacroID())
+//        				 {
+//        				 std::cout << "isMacroID" << "\r\n";
+//        				 std::cout <<  std::cout << sm.getFileOffset(sm.getSpellingLoc(ret->getLocEnd()).getLocWithOffset(0)) << std::endl;
+//        				 }
+
+        		 }
+
         		 //rewriter.InsertTextAfter(sm.getSpellingLoc(returnSemiLoc), " /*DRS7*/ ");
 //        		         		 rewriter.InsertTextBefore(returnSemiLoc, "");
 //        		 if (rewrite_enable) rewriter.overwriteChangedFiles();
@@ -389,6 +488,69 @@ int main(int argc, const char **argv) {
 	static std::unique_ptr< CompilationDatabase > cdb = clang::tooling::CompilationDatabase::loadFromDirectory(std::string(argv[2]),err_str);
 
 	std::vector<std::string> files = cdb->getAllFiles();
+	std::vector<CompileCommand> compileCommands = cdb->getCompileCommands(std::string(argv[1]));
+	std::string compile_command = "";
+	std::string command = "";
+	std::string directory = "";
+	std::string filename = "";
+	bool oCommandFound = false;
+
+	for (unsigned i = 0; i < compileCommands.size(); i++)
+	{
+		compile_command = "";
+		directory = compileCommands[i].Directory;
+		//std::cout << directory << std::endl;
+		filename = compileCommands[i].Filename;
+		//std::cout << filename << std::endl;
+		//std::cout << compileCommands[i].Output<< std::endl;
+		oCommandFound = false;
+		for (unsigned j = 0; j < compileCommands[i].CommandLine.size(); j++)
+		{
+			if (oCommandFound == true) //skip -o value
+			{
+				oCommandFound = false;
+				continue;
+			}
+			command = compileCommands[i].CommandLine[j];
+			if (command.compare("-o") == 0) //skip -o option
+			{
+				oCommandFound = true;
+				//std::cout << "found -o command" << std::endl;
+				continue;
+			}
+			if (command.find("-I",0) == 0)
+			{
+				//std::cout << "found -I command" << std::endl;
+				//std::cout << directory + "/" + command.substr(2) << std::endl;
+				command = "-I" + directory + "/" + command.substr(2);
+			}
+			if (command.find("-L",0) == 0) {
+				//std::cout << "found -L command" << std::endl;
+				command = "-L" + directory + "/" + command.substr(2);
+			}
+
+			if (j == compileCommands[i].CommandLine.size()-1) //file name
+			{
+				command = directory + "/" + command;
+				filename = command;
+			}
+
+			compile_command = compile_command + command + " ";
+
+			//printf ("%s\n\r", compileCommands[i].CommandLine[j].c_str());
+		}
+
+		compile_command = compile_command + "-E"; //prepocess file
+
+		//printf ("%s\n\r", compile_command.c_str());
+		std::string command_to_perform = compile_command + " > " + "tmpFile.txt";
+		system(command_to_perform.c_str());
+		command_to_perform = std::string("mv ") + std::string("tmpFile.txt ") + filename;
+		system(command_to_perform.c_str());
+		//		compile_command = compile_command + compileCommands[i];
+	}
+
+	printf ("%s\n\r", compile_command.c_str());
 
 //	for (unsigned i = 0; i < files.size(); i++)
 //	{
@@ -440,18 +602,38 @@ int main(int argc, const char **argv) {
 	//	rewriter.overwriteChangedFiles();
 
 
-    for (RPLSMTS_CONTAINER_TYPE::iterator it = replacements.begin(); it != replacements.end(); ++it)
+//    for (RPLSMTS_CONTAINER_TYPE::iterator it = replacements.begin(); it != replacements.end(); ++it)
+//    {
+//    	errs() << "**" << (*it).first << "**" << "\n\r";
+//    	std::vector<Rplsmt> rplsmtsList = (*it).second;
+//    	std::sort(rplsmtsList.begin(),rplsmtsList.end(),Rplsmt::rplsmtSmallerOrEqual);
+//    	for (auto i = 0; i < rplsmtsList.size(); i++)
+//    	{
+//    		std::cout << rplsmtsList.at(i) << "\n\r";
+//    	}
+//    }
+    myfile.open(replacementsPath, std::ios::out|std::ios::in|std::ios::app);
+    if (myfile.is_open())
     {
-    	errs() << "**" << (*it).first << "**" << "\n\r";
-    	std::vector<Rplsmt> rplsmtsList = (*it).second;
-    	std::sort(rplsmtsList.begin(),rplsmtsList.end(),Rplsmt::rplsmtSmallerOrEqual);
-    	for (auto i = 0; i < rplsmtsList.size(); i++)
-    	{
-    		std::cout << rplsmtsList.at(i) << "\n\r";
-    	}
+		for (RPLSMTS_CONTAINER_TYPE::iterator it = replacements.begin(); it != replacements.end(); ++it)
+		{
+			myfile << "file:" << (*it).first << "\n\r";
+			std::vector<Rplsmt> rplsmtsList = (*it).second;
+			std::sort(rplsmtsList.begin(),rplsmtsList.end(),Rplsmt::rplsmtSmallerOrEqual);
+			for (auto i = 0; i < rplsmtsList.size(); i++)
+			{
+				myfile << rplsmtsList.at(i) << "\n\r";
+			}
+		}
+        myfile.close();
+    }
+    else
+    {
+        std::cout << "Error opening file: " << replacementsPath << "\n\r";
     }
 
-    errs() << "End Tool \n\r";
+
+    //errs() << "End Tool \n\r";
     return result;
 }
     
