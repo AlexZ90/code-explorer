@@ -1,0 +1,100 @@
+int main() ()
+{
+  void * a.0;
+  int iftmp.1;
+  bool D.3012;
+  int D.3016;
+
+  {
+    struct A * a;
+    int b;
+
+    a.0 = operator new (4);
+    try
+      {
+        A::A (a.0);
+      }
+    catch
+      {
+        operator delete (a.0);
+      }
+    a = a.0;
+    A::hello (a);
+    func1 ();
+    func2 ();
+    func3 ();
+    D.3012 = A::getVar (a);
+    if (D.3012 != 0) goto <D.3013>; else goto <D.3014>;
+    <D.3013>:
+    iftmp.1 = 1;
+    goto <D.3015>;
+    <D.3014>:
+    iftmp.1 = 0;
+    <D.3015>:
+    printf ("a->getVar() = %d\n\r", iftmp.1);
+    b = 1;
+    printf ("b = %d\n\r", b);
+    __builtin_puts (&"SSE_DEFINED\r"[0]);
+    D.3016 = 1;
+    return D.3016;
+  }
+  D.3016 = 0;
+  return D.3016;
+}
+
+
+A::A() (struct A * const this)
+{
+
+}
+
+
+bool func1() ()
+{
+  bool D.3022;
+
+  __builtin_puts (&"##name_str\r"[0]);
+  D.3022 = 1;
+  return D.3022;
+}
+
+
+bool func2() ()
+{
+  bool D.3024;
+
+  __builtin_puts (&"##name_str\r"[0]);
+  D.3024 = 1;
+  return D.3024;
+}
+
+
+bool func3() ()
+{
+  bool D.3026;
+
+  __builtin_puts (&"##name_str\r"[0]);
+  D.3026 = 1;
+  return D.3026;
+}
+
+
+bool A::getVar() const (const struct A * const this)
+{
+  bool D.3028;
+  unsigned char D.3029;
+  unsigned char D.3030;
+
+  D.3029 = BIT_FIELD_REF <*this, 8, 0>;
+  D.3030 = D.3029 & 1;
+  D.3028 = D.3030 == 0;
+  return D.3028;
+}
+
+
+void my_func(myType) (myType func)
+{
+  GIMPLE_NOP
+}
+
+

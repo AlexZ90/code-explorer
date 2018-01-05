@@ -1,0 +1,18 @@
+clang-5.0: warning: /dev/null: 'linker' input unused [-Wunused-command-line-argument]
+clang -cc1 version 5.0.0 based upon LLVM 5.0.0svn default target x86_64-unknown-linux-gnu
+ignoring nonexistent directory "/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/local/include
+ /home/pavel/Downloads/build_llvm/lib/clang/5.0.0/include
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+# 1 "<stdin>"
+# 1 "<built-in>" 1
+# 1 "<built-in>" 3
+# 329 "<built-in>" 3
+# 1 "<command line>" 1
+# 1 "<built-in>" 2
+# 1 "<stdin>" 2
+

@@ -1,0 +1,10 @@
+bar ()
+{
+  int D.2201;
+
+  printf ("return");
+  D.2201 = 1;
+  return D.2201;
+}
+
+

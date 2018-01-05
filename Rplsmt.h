@@ -37,7 +37,7 @@ public:
 		{
 			return false;
 		}
-		else if (((firstElem.insText == "B") && ((secondElem.insText == "E") || (secondElem.insText == "R1") || (secondElem.insText == "R2"))) || ((firstElem.insText == "R3") && (secondElem.insText == "E")))
+		else if ((firstElem.insText == "B") && ((secondElem.insText == "E") || (secondElem.insText == "R")))
 		{
 			return true;
 		}

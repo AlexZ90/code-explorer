@@ -1,0 +1,1 @@
+"string included from text file"

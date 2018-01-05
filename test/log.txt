@@ -1,81 +1,43 @@
-warning: argument unused during compilation: '--shared' [-Wunused-command-line-argument]
-In file included from src/foo.c:1:
-/usr/include/stdio.h:33:11: fatal error: 'stddef.h' file not found
-# include <stddef.h>
-          ^~~~~~~~~~
-1 error generated.
-Error while processing /home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/foo.c.
 
-Found 109 functions.
+start main 9981 src/main.cpp 62
 
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/foo.c**
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/foo.c return found at offset223
-pattern 	DRS7 
-warning: argument unused during compilation: '--shared' [-Wunused-command-line-argument]
-In file included from src/bar.c:1:
-/usr/include/stdio.h:33:11: fatal error: 'stddef.h' file not found
-# include <stddef.h>
-          ^~~~~~~~~~
-1 error generated.
-Error while processing /home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/bar.c.
+start A 9981 include/test.h 25
 
-Found 108 functions.
+end A 9981 include/test.h 25
 
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/bar.c**
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/bar.c return found at offset230
-pattern  DRS7 
-In file included from src/main.cpp:1:
-/usr/include/stdio.h:33:11: fatal error: 'stddef.h' file not found
-# include <stddef.h>
-          ^~~~~~~~~~
-1 error generated.
-Error while processing /home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/main.cpp.
+start hello 9981 src/test.cpp 21
 
-Found 126 functions.
+start foo 9981 src/foo.c 22
 
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h**
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h**
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h return found at offset156
-pattern  DRS7 
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h return found at offset182
-pattern  DRS7 
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h**
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h return found at offset262
-pattern  DRS7 
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/main.cpp**
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/main.cpp return found at offset238
-pattern  DRS7 
-In file included from src/test.cpp:1:
-/usr/include/stdio.h:33:11: fatal error: 'stddef.h' file not found
-# include <stddef.h>
-          ^~~~~~~~~~
-1 error generated.
-Error while processing /home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/test.cpp.
+start bar 9981 src/bar.c 22
+return
+ret bar 9981 src/bar.c 23
 
-Found 126 functions.
+ret foo 9981 src/foo.c 41
 
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h**
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h**
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h return found at offset156
-pattern  DRS7 
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h return found at offset182
-pattern  DRS7 
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h**
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h return found at offset262
-pattern  DRS7 
-pattern { DEFBEG_7
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/test.cpp**
-/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/test.cpp return found at offset232
-pattern 	DRS7 
-gcc -fPIC --shared -o lib/libfoo.so src/foo.c -Iinclude 
-gcc -fPIC --shared -o lib/libbar.so src/bar.c -Iinclude 
-g++ -o test src/main.cpp src/test.cpp -Iinclude -Llib -lfoo -lbar -Wl,-rpath=lib 
+ret hello 9981 src/test.cpp 23
+
+start func1 9981 src/main.cpp 41
+##name_str
+
+ret func1 9981 src/main.cpp 41
+
+start func2 9981 src/main.cpp 42
+##name_str
+
+ret func2 9981 src/main.cpp 42
+
+start func3 9981 src/main.cpp 55
+##name_str
+
+ret func3 9981 src/main.cpp 55
+
+start getVar 9981 include/test.h 29
+
+ret getVar 9981 include/test.h 29
+a->getVar() = 1
+b = 1
+HELLO IS NOT DEFINED
+
+ret main 9981 src/main.cpp 98
+SSE_DEFINED

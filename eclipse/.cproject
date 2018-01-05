@@ -24,7 +24,7 @@
 								<option id="gnu.cpp.compiler.exe.debug.option.optimization.level.1591305047" name="Optimization Level" superClass="gnu.cpp.compiler.exe.debug.option.optimization.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.exe.debug.option.debugging.level.489295805" name="Debug Level" superClass="gnu.cpp.compiler.exe.debug.option.debugging.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.include.paths.1985421493" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
-									<listOptionValue builtIn="false" value="/home/alex/Downloads/llvm/include/llvm"/>
+									<listOptionValue builtIn="false" value="/home/alex/Downloads/llvm/include/"/>
 									<listOptionValue builtIn="false" value="/home/alex/Downloads/llvm/tools/clang/include"/>
 									<listOptionValue builtIn="false" value="/home/alex/Downloads/llvm/tools/clang/include"/>
 								</option>
@@ -126,4 +126,5 @@
 			<resource resourceType="PROJECT" workspacePath="/example"/>
 		</configuration>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>

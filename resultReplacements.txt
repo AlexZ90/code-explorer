@@ -1,0 +1,30 @@
+file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/src/bar.c
+67 R
+84 B
+95 E
+file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/src/test.cpp
+36 B
+57 R
+61 E
+file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/include/test.h
+94 B
+94 E
+123 B
+141 R
+156 R
+159 E
+195 B
+201 R
+204 E
+244 B
+250 R
+256 E
+file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/src/foo.c
+49 B
+163 R
+170 E
+file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/src/main.cpp
+86 B
+225 R
+256 E
+

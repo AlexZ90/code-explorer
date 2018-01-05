@@ -1,43 +1,57 @@
-file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/src/main.cpp
-17556 B
-17556 E
-17585 B
-17603 R1
-17618 R1
-17621 E
-17657 B
-17663 R1
-17666 E
-17706 B
-17712 R1
-17718 E
-17817 B
-17952 R1
-17983 E
-file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/src/test.cpp
-17553 B
-17553 E
-17582 B
-17600 R1
-17615 R1
-17618 E
-17654 B
-17660 R1
-17663 E
-17703 B
-17709 R1
-17715 E
-17815 B
-17831 R1
-17838 E
-file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/src/foo.c
-17578 B
-17685 R2
-17685 R2
-17693 R3
-17693 E
-file:/home/alex/Downloads/llvm/tools/clang/tools/example/test/src/bar.c
-17405 B
-17425 R1
-17430 E
+file:/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/test.cpp
+36 B
+51 R
+64 E
+file:/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h
+113 B
+113 E
+142 B
+154 R
+169 R
+178 E
+214 B
+214 R
+223 E
+263 B
+298 R
+310 E
+file:/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/foo.c
+34 R
+57 B
+171 E
+file:/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/main.cpp
+315 B
+344 E
+796 R
+796 R
+796 R
+796 R
+796 R
+854 B
+854 B
+907 E
+907 E
+1017 B
+1070 E
+1333 B
+2488 E
+2631 B
+2631 E
+file:/home/pavel/Downloads/llvm/tools/clang/tools/example/test/include/test.h
+113 B
+113 E
+142 B
+154 R
+169 R
+178 E
+214 B
+214 R
+223 E
+263 B
+298 R
+310 E
+file:/home/pavel/Downloads/llvm/tools/clang/tools/example/test/src/bar.c
+67 R
+92 B
+103 E
 

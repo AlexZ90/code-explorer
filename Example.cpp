@@ -13,6 +13,15 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/Tooling/Refactoring.h"
+#include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/HeaderSearchOptions.h"
+#include "clang/Lex/DirectoryLookup.h"
+#include "clang/Basic/SourceManager.h"
+#include "clang/Basic/Module.h"
+#include "clang/Lex/PPCallbacks.h"
+#include "clang/Lex/MacroInfo.h"
+#include "clang/Basic/LLVM.h"
+
 
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
@@ -27,7 +36,9 @@
 #include <unordered_map>
 #include <stdio.h>
 
+
 #include "Rplsmt.h"
+
 
 using namespace std;
 using namespace clang;
@@ -41,6 +52,9 @@ std::string fileName;
 std::string dirPath;
 bool rewrite_enable = false;
 std::string replacementsPath = "./replacements.txt";
+std::vector<std::string> compilerPredefines;
+std::vector<std::string> compilerSearchPaths;
+std::vector<std::string> clangSearchPaths;
 
 #define RPLSMTS_CONTAINER_TYPE std::unordered_map<std::string, std::vector<Rplsmt>>
 RPLSMTS_CONTAINER_TYPE replacements;
@@ -53,7 +67,6 @@ RPLSMTS_CONTAINER_TYPE replacements;
 	#define DEBUG_PRINT(...)
 #endif
 
-
 int find_string (std::string &str, std::vector<std::string> &vector)
 {
     for (unsigned int i = 0; i < vector.size(); i++)
@@ -64,15 +77,22 @@ int find_string (std::string &str, std::vector<std::string> &vector)
     return 0;
 }
 
+
+// bool isCallToStdMove() const {
+//      const FunctionDecl* FD = getDirectCallee();
+//      return getNumArgs() == 1 && FD && FD->isInStdNamespace() &&
+//             FD->getIdentifier() && FD->getIdentifier()->isStr("move");
+//   }
+
 SourceLocation findSemiAfterLocation(SourceLocation loc,
                                             ASTContext &Ctx,
                                             bool IsDecl) {
   SourceManager &SM = Ctx.getSourceManager();
   if (loc.isMacroID()) {
-	//std::cout << __func__ << " " << __LINE__ << std::endl;
+  //std::cout << __func__ << " " << __LINE__ << std::endl;
     if (!Lexer::isAtEndOfMacroExpansion(loc, SM, Ctx.getLangOpts(), &loc))
     {
-    	//std::cout << __func__ << " " << __LINE__ << std::endl;
+      //std::cout << __func__ << " " << __LINE__ << std::endl;
       return SourceLocation();
     }
   }
@@ -96,14 +116,14 @@ SourceLocation findSemiAfterLocation(SourceLocation loc,
   Token tok;
   lexer.LexFromRawLexer(tok);
   if (tok.isNot(tok::semi)) {
-	  //std::cout << __func__ << " " << __LINE__ << std::endl;
-	if (!IsDecl)
-	{
-	  //if (std::string(tok.getName())=="rawIdentifier")
-	  return tok.getLocation().getLocWithOffset(tok.getRawIdentifier().str().size()); //return raw identifier end
-	  //return SourceLocation();
-	}
-    	
+    //std::cout << __func__ << " " << __LINE__ << std::endl;
+  if (!IsDecl)
+  {
+    //if (std::string(tok.getName())=="rawIdentifier")
+    return tok.getLocation().getLocWithOffset(tok.getRawIdentifier().str().size()); //return raw identifier end
+    //return SourceLocation();
+  }
+      
     // Declaration may be followed with other tokens; such as an __attribute,
     // before ending with a semicolon.
     //std::cout << __func__ << " " << __LINE__ << std::endl;
@@ -133,6 +153,292 @@ std::string MakeAbsolutePath(const clang::SourceManager &SM, clang::StringRef Pa
   }
   return AbsolutePath.str();
 }
+
+class Find_Includes : public PPCallbacks
+{
+public:
+  bool has_include;
+
+  void InclusionDirective(
+    clang::SourceLocation hash_loc,
+    const clang::Token &include_token,
+    clang::StringRef file_name,
+    bool is_angled,
+    clang::CharSourceRange filename_range,
+    const clang::FileEntry *file,
+    clang::StringRef search_path,
+    clang::StringRef relative_path,
+    const clang::Module *imported)
+  {
+    // do something with the include
+    has_include = true;
+  }
+};
+
+class Find_Macros : public PPCallbacks
+{
+public:
+  bool has_macro;
+
+
+
+  void Ifdef  ( clang::SourceLocation Loc,
+    const clang::Token &MacroNameTok,
+    const clang::MacroDefinition &MD 
+    ) 
+  {
+    // do something with the include
+    has_macro = true;
+
+    //clang::SourceManager &sm = compiler.getSourceManager();
+
+        std::string filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(rewriter.getSourceMgr().getSpellingLoc(MacroNameTok.getLocation())));
+        std::string MacroName = MacroNameTok.getIdentifierInfo()->getName();
+        int MacroLength = MacroNameTok.getLength();
+        
+        std::cout << "ifdef " << "\"" << MacroName << "\"" << " " << MacroLength << " " << filePath << "\n";
+
+    // if (sm.isInMainFile(hashLoc)) {
+    //     const unsigned int lineNum = sm.getSpellingLineNumber(hashLoc);
+    //     includes.push_back(std::make_pair(lineNum, fileName));
+    // }
+
+  }
+
+  void Ifndef  ( clang::SourceLocation Loc,
+  const clang::Token &MacroNameTok,
+  const clang::MacroDefinition &MD 
+  ) 
+  {
+    // do something with the include
+    has_macro = true;
+
+    //clang::SourceManager &sm = compiler.getSourceManager();
+
+        std::string filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(rewriter.getSourceMgr().getSpellingLoc(MacroNameTok.getLocation())));
+        std::string MacroName = MacroNameTok.getIdentifierInfo()->getName();
+        int MacroLength = MacroNameTok.getLength();
+        
+        std::cout << "ifndef " << "\"" << MacroName << "\"" << " " << MacroLength << " " << filePath << "\n";
+
+    // if (sm.isInMainFile(hashLoc)) {
+    //     const unsigned int lineNum = sm.getSpellingLineNumber(hashLoc);
+    //     includes.push_back(std::make_pair(lineNum, fileName));
+    // }
+
+  }
+
+
+  void Defined  ( const clang::Token &MacroNameTok,
+                  const clang::MacroDefinition &MD,
+                  clang::SourceRange Range) 
+  {
+    //clang::SourceManager &sm = compiler.getSourceManager();
+
+        std::string filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(rewriter.getSourceMgr().getSpellingLoc(MacroNameTok.getLocation())));
+        std::string MacroName = MacroNameTok.getIdentifierInfo()->getName();
+        int MacroLength = MacroNameTok.getLength();
+        
+        std::cout << "defined " << "\"" << MacroName << "\"" << " " << MacroLength << " " << filePath << "\n";
+
+        
+    // if (sm.isInMainFile(hashLoc)) {
+    //     const unsigned int lineNum = sm.getSpellingLineNumber(hashLoc);
+    //     includes.push_back(std::make_pair(lineNum, fileName));
+    // }
+
+  }
+
+
+
+void If ( clang::SourceLocation Loc,
+          clang::SourceRange ConditionRange,
+           clang::PPCallbacks::ConditionValueKind ConditionValue
+      ) 
+  {
+    //clang::SourceManager &sm = compiler.getSourceManager();
+
+        std::string filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(rewriter.getSourceMgr().getSpellingLoc(Loc)));
+		CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(ConditionRange);
+		std::string patternLine = Lexer::getSourceText(charSourceRange,rewriter.getSourceMgr(),rewriter.getLangOpts());
+        std::cout << "If: " << "\"" << patternLine << "\"" << " " << filePath << "\n";
+  }
+
+
+void Elif ( clang::SourceLocation Loc,
+          clang::SourceRange ConditionRange,
+           clang::PPCallbacks::ConditionValueKind ConditionValue,
+           clang::SourceLocation IfLoc
+      ) 
+  {
+    //clang::SourceManager &sm = compiler.getSourceManager();
+
+        std::string filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(rewriter.getSourceMgr().getSpellingLoc(Loc)));
+		CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(ConditionRange);
+		std::string patternLine = Lexer::getSourceText(charSourceRange,rewriter.getSourceMgr(),rewriter.getLangOpts());
+        std::cout << "Elif: " << "\"" << patternLine << "\"" << " " << filePath << "\n";
+  }
+
+  void MacroExpands ( const clang::Token &MacroNameTok,
+                    const clang::MacroDefinition &MD,
+                    clang::SourceRange Range,
+                    const clang::MacroArgs *Args) 
+  {
+    //clang::SourceManager &sm = compiler.getSourceManager();
+
+        std::string filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(rewriter.getSourceMgr().getSpellingLoc(MacroNameTok.getLocation())));
+        std::string MacroName = MacroNameTok.getIdentifierInfo()->getName();
+        int MacroLength = MacroNameTok.getLength();
+        
+        std::cout << "MacroExpands " << "\"" << MacroName << "\"" << " " << MacroLength << " " << filePath << "\n";
+
+    // if (sm.isInMainFile(hashLoc)) {
+    //     const unsigned int lineNum = sm.getSpellingLineNumber(hashLoc);
+    //     includes.push_back(std::make_pair(lineNum, fileName));
+    // }
+
+  }
+
+
+void MacroDefined 	(const clang::Token &MacroNameTok,
+					const clang::MacroDirective *MD)
+{
+
+	std::string filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(rewriter.getSourceMgr().getSpellingLoc(MacroNameTok.getLocation())));
+	std::string MacroName = MacroNameTok.getIdentifierInfo()->getName();
+	int MacroLength = MacroNameTok.getLength();
+
+    std::cout << "MacroDefined " << "\"" << MacroName << "\"" << " " << MacroLength << " " << filePath << "\n";
+
+}
+
+
+
+
+};
+
+// Find_Macros::Find_Macros(const clang::CompilerInstance &compiler)
+// {
+//   this->compiler = compiler;
+// }
+
+int getPredefines (const std::string &compilerName, std::vector<std::string> &predefines)
+{
+
+  std::string command = "";
+  std::fstream inFile;
+  std::string line;
+  std::string inFilePath = "./predefines.txt";
+
+  if (compilerName == "gcc")
+  {
+    command = "gcc -dM -E -x c /dev/null > " + inFilePath;
+    system(command.c_str());
+  }
+  else if (compilerName == "g++")
+  {
+    command = "g++ -x c++ -dM -E - < /dev/null > " + inFilePath;
+    system(command.c_str());
+  }
+  else if (compilerName == "clang")
+  {
+    command = "clang -dM -E -x c /dev/null > " + inFilePath;
+    system(command.c_str());
+  }
+
+  inFile.open(inFilePath, std::ios::in);
+
+  if (inFile.is_open())
+  {
+    while (std::getline(inFile,line))
+    {
+
+        predefines.push_back(line);
+    }
+
+    inFile.close();
+  }
+  else
+  {
+    std::cout << "Error opening input file: " << inFilePath << "\n\r";
+    inFile.close();
+    return 0;
+  }
+
+inFile.close();
+// outFile.open(outFilePath, std::ios::out | std::ios::in | std::ios::trunc);
+// outFile << line << " " << level << std::endl;
+// outFile.close();
+
+return 1;
+}
+
+
+int getSearchPaths (const std::string &compilerName, std::vector<std::string> &predefines)
+{
+
+  std::string command = "";
+  std::fstream inFile;
+  std::string line;
+  std::string inFilePath = "./compilerSearchPaths.txt";
+
+  if (compilerName == "gcc")
+  {
+    command = "echo | gcc -E -Wp,-v - /dev/null > " + inFilePath + " 2>&1";
+    system(command.c_str());
+  }
+  else if (compilerName == "g++")
+  {
+    command = "g++ -E -x c++ - -v < /dev/null > " + inFilePath + " 2>&1";
+    system(command.c_str());
+  }
+  else if (compilerName == "clang")
+  {
+    command = "echo | clang -E -Wp,-v - /dev/null > " + inFilePath + " 2>&1";
+    system(command.c_str());
+  }
+
+  inFile.open(inFilePath, std::ios::in);
+  int readIncludes = 0;
+
+  if (inFile.is_open())
+  {
+    while (std::getline(inFile,line))
+    {
+		
+		if (line.find("#include <...> search starts here") != std::string::npos)
+		{
+			readIncludes = 1;
+		}
+		else if (line.find("End of search list") != std::string::npos)
+		{
+			readIncludes = 0;
+		}
+		else if (readIncludes == 1)
+		{
+			predefines.push_back(line.substr(line.find("/")));
+		}
+    }
+
+    inFile.close();
+  }
+  else
+  {
+    std::cout << "Error opening input file: " << inFilePath << "\n\r";
+    inFile.close();
+    return 0;
+  }
+
+inFile.close();
+// outFile.open(outFilePath, std::ios::out | std::ios::in | std::ios::trunc);
+// outFile << line << " " << level << std::endl;
+// outFile.close();
+
+return 1;
+}
+
+
+
 
 
 class ExampleVisitor : public RecursiveASTVisitor<ExampleVisitor> {
@@ -166,7 +472,7 @@ public:
         {
             if (func->isThisDeclarationADefinition () && func->hasBody())
             {
-                filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(func->getBody()->getLocStart()));
+                filePath = MakeAbsolutePath(rewriter.getSourceMgr(),rewriter.getSourceMgr().getFilename(sm.getSpellingLoc(func->getBody()->getLocStart())));
 
 //                idString = filePath + " " + func->getQualifiedNameAsString() + " ";
 
@@ -181,11 +487,13 @@ public:
 
 
                 //file_processed = find_string(idString, processed_files);
-                SourceLocation startPattern = func->getBody()->getLocStart();
+                SourceLocation startPattern = sm.getSpellingLoc(func->getBody()->getLocStart());
 //                SourceLocation endPattern = func->getBody()->getLocStart().getLocWithOffset(10);
-                SourceLocation endPattern = func->getBody()->getLocStart().getLocWithOffset(14);
+                SourceLocation endPattern = sm.getSpellingLoc(func->getBody()->getLocStart().getLocWithOffset(11));
                 CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(startPattern,endPattern);
                 std::string patternLine = Lexer::getSourceText(charSourceRange,rewriter.getSourceMgr(),rewriter.getLangOpts());
+
+                //std::cout << "\r\n" << patternLine << std::endl;
 
 //                DEBUG_PRINT (std::string("pattern "  + patternLine + "\n\r").c_str());
                 if (patternLine.find("DEFBEG") != std::string::npos)
@@ -193,14 +501,57 @@ public:
                 	file_processed = 1;
                 }
 
+//                file_processed = 0;
+                int semiPos = 0;
 
                 //std::cout << filePath << "**\n" ;
                 if ((filePath.find(dirPath) == 0) && (file_processed == 0)) //is in directory and not processed yet
                 {
 //                	DEBUG_PRINT (std::string("rw "  + filePath + "\n\r").c_str());
-                    braceLoc = func->getBody()->getLocStart().getLocWithOffset(1);            
+                    //braceLoc = func->getBody()->getLocStart().getLocWithOffset(1);            
+                    braceLoc = func->getBody()->getLocStart();            
                     if (braceLoc.isValid())
                     {
+
+                        /* Start prevent errors in construction like
+
+                        #define func \
+                        { \
+                        }
+
+                        where braceLoc.getLocWithOffset(1) return position at line #define func \ before '\'
+                        so result would be (error):
+
+                        #define func \ DEFBEG_777
+                        { \
+                        }
+
+                       */
+                        int semiOffset = 0;
+                        while (1)
+                        {
+                          startPattern = sm.getSpellingLoc(braceLoc);
+          //                SourceLocation endPattern = func->getBody()->getLocStart().getLocWithOffset(10);
+                          endPattern = sm.getSpellingLoc(braceLoc.getLocWithOffset(semiOffset));
+
+                          charSourceRange = clang::CharSourceRange::getCharRange(startPattern,endPattern);
+                          patternLine = Lexer::getSourceText(charSourceRange,rewriter.getSourceMgr(),rewriter.getLangOpts());
+
+                          // std::cout << patternLine << std::endl;
+
+                          if ( (semiPos = patternLine.find("{")) != std::string::npos) break;
+                          else
+                          {
+                            semiOffset++;
+                          }
+                          
+
+                        }
+
+                        // std::cout << semiPos+1 << std::endl;
+                        braceLoc = func->getBody()->getLocStart().getLocWithOffset(semiPos+1);
+                        /* end */
+
                     		//rewriter.InsertTextAfter(braceLoc, " /*DEFBEG_777*/ ");
                     		long int pos = sm.getFileOffset(sm.getSpellingLoc(braceLoc));
                     		DEBUG_PRINT (std::string(filePath + " B " + std::to_string(pos) + "\n\r").c_str());
@@ -266,10 +617,10 @@ public:
         	 retExprEndLoc = sm.getSpellingLoc(ret->getLocEnd());
 
         	 int  file_processed = 0;
-        	 SourceLocation startPattern = sm.getSpellingLoc(ret->getLocEnd()).getLocWithOffset(0);
+        	 SourceLocation startPattern = sm.getSpellingLoc(ret->getLocStart()).getLocWithOffset(-11);
         	 //             SourceLocation startPattern = sm.getSpellingLoc(ret->getLocStart()).getLocWithOffset(-6);
 //             SourceLocation startPattern = sm.getSpellingLoc(ret->getLocStart()).getLocWithOffset(-10);
-			 SourceLocation endPattern = sm.getSpellingLoc(ret->getLocEnd()).getLocWithOffset(10);
+			 SourceLocation endPattern = sm.getSpellingLoc(ret->getLocStart());
 			 //CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(endPattern,startPattern);
 			 CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(startPattern,endPattern);
 
@@ -281,7 +632,7 @@ public:
 
 //			 DEBUG_PRINT (std::string("pattern "  + patternLine + "\n\r").c_str());
 
-			 if (patternLine.find("DRS7") != std::string::npos)
+			 if (patternLine.find("DEFRET") != std::string::npos)
 			 {
 				file_processed = 1;
 			 }
@@ -290,51 +641,57 @@ public:
 
 
         	 //SourceLocation returnSemiLoc  = sm.getSpellingLoc(Lexer::findLocationAfterToken(retExprEndLoc,clang::tok::TokenKind::semi,rewriter.getSourceMgr(), rewriter.getLangOpts(),false));
-        	 SourceLocation returnSemiLoc  = sm.getSpellingLoc(ret->getLocStart().getLocWithOffset(6));
+			 SourceLocation returnSemiLoc  = sm.getSpellingLoc(ret->getLocStart());
+			 if (returnSemiLoc.isValid() && (filePath.find(dirPath) == 0) && (file_processed == 0))
+			 {
+				 long int pos = sm.getFileOffset(returnSemiLoc);
+				 DEBUG_PRINT (std::string(filePath + " R " + std::to_string(pos) + "\n\r").c_str());
+				 replacements[filePath].push_back(Rplsmt(pos,"R"));
 
-        	 if (returnSemiLoc.isValid() && (file_processed == 0) && (filePath.find(dirPath) == 0))
-        	 {
-//        		 rewriter.InsertTextAfter(sm.getSpellingLoc(ret->getLocStart()), "/*DRS7*/ ");
-//        		 rewriter.InsertTextBefore(returnSemiLoc, " /*DRE7*/ ");
-                 long int pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc));
-
-        		 if (returnVoid == false)
-        		 {
-        			 //std::cout << sm.getFileOffset(findSemiAfterLocation(ret->getLocStart(), *(this->astContext),false)) << std::endl;
-        			 DEBUG_PRINT (std::string(filePath + " R1 " + std::to_string(pos) + "\n\r").c_str());
-        			 replacements[filePath].push_back(Rplsmt(pos,"R1"));
-        		 }
-        		 else
-        		 {
-        			 returnSemiLoc = sm.getSpellingLoc(ret->getLocStart());
-        			 pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc));
-
-        			 DEBUG_PRINT (std::string(filePath + " R2 " + std::to_string(pos) + "\n\r").c_str());
-        			 replacements[filePath].push_back(Rplsmt(pos,"R2"));
-
-        			 replacements[filePath].push_back(Rplsmt(pos,"R2"));
-
-        			 returnSemiLoc = sm.getSpellingLoc(findSemiAfterLocation(ret->getLocEnd(), *(this->astContext),false));
-        			 pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc).getLocWithOffset(1));
-
-        			 DEBUG_PRINT (std::string(filePath + " R3 " + std::to_string(pos) + "\n\r").c_str());
-        			 replacements[filePath].push_back(Rplsmt(pos,"R3"));
-
-//        			 std::cout << sm.getFileOffset(sm.getExpansionLoc(findSemiAfterLocation(ret->getLocEnd(), *(this->astContext),false))) << std::endl;
-
-        			 
-//        			 if (ret->getLocEnd().isMacroID())
-//        				 {
-//        				 std::cout << "isMacroID" << "\r\n";
-//        				 std::cout <<  std::cout << sm.getFileOffset(sm.getSpellingLoc(ret->getLocEnd()).getLocWithOffset(0)) << std::endl;
-//        				 }
-
-        		 }
-
-        		 //rewriter.InsertTextAfter(sm.getSpellingLoc(returnSemiLoc), " /*DRS7*/ ");
-//        		         		 rewriter.InsertTextBefore(returnSemiLoc, "");
-//        		 if (rewrite_enable) rewriter.overwriteChangedFiles();
-        	 }
+			 }
+			 //        	 SourceLocation returnSemiLoc  = sm.getSpellingLoc(ret->getLocStart().getLocWithOffset(6));
+//
+//        	 if (returnSemiLoc.isValid() && (file_processed == 0) && (filePath.find(dirPath) == 0))
+//        	 {
+////        		 rewriter.InsertTextAfter(sm.getSpellingLoc(ret->getLocStart()), "/*DRS7*/ ");
+////        		 rewriter.InsertTextBefore(returnSemiLoc, " /*DRE7*/ ");
+//                 long int pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc));
+//
+//        		 if (returnVoid == false)
+//        		 {
+//        			 //std::cout << sm.getFileOffset(findSemiAfterLocation(ret->getLocStart(), *(this->astContext),false)) << std::endl;
+//        			 DEBUG_PRINT (std::string(filePath + " R1 " + std::to_string(pos) + "\n\r").c_str());
+//        			 replacements[filePath].push_back(Rplsmt(pos,"R1"));
+//        		 }
+//        		 else
+//        		 {
+//        			 returnSemiLoc = sm.getSpellingLoc(ret->getLocStart());
+//        			 pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc));
+//
+//        			 DEBUG_PRINT (std::string(filePath + " R2 " + std::to_string(pos) + "\n\r").c_str());
+//        			 replacements[filePath].push_back(Rplsmt(pos,"R2"));
+//
+////        			 returnSemiLoc = sm.getSpellingLoc(findSemiAfterLocation(ret->getLocEnd(), *(this->astContext),false));
+////        			 pos = sm.getFileOffset(sm.getSpellingLoc(returnSemiLoc).getLocWithOffset(1));
+////
+////        			 DEBUG_PRINT (std::string(filePath + " R3 " + std::to_string(pos) + "\n\r").c_str());
+////        			 replacements[filePath].push_back(Rplsmt(pos,"R3"));
+//
+////        			 std::cout << sm.getFileOffset(sm.getExpansionLoc(findSemiAfterLocation(ret->getLocEnd(), *(this->astContext),false))) << std::endl;
+//
+//
+////        			 if (ret->getLocEnd().isMacroID())
+////        				 {
+////        				 std::cout << "isMacroID" << "\r\n";
+////        				 std::cout <<  std::cout << sm.getFileOffset(sm.getSpellingLoc(ret->getLocEnd()).getLocWithOffset(0)) << std::endl;
+////        				 }
+//
+//        		 }
+//
+//        		 //rewriter.InsertTextAfter(sm.getSpellingLoc(returnSemiLoc), " /*DRS7*/ ");
+////        		         		 rewriter.InsertTextBefore(returnSemiLoc, "");
+////        		 if (rewrite_enable) rewriter.overwriteChangedFiles();
+//        	 }
 
 //             rewriter.InsertTextAfter(ret->getLocStart(), "{ DEFRET_777 ");
              //rewriter.ReplaceText(ret->getRetValue()->getLocStart(), 6, "val");
@@ -369,32 +726,71 @@ public:
         return true;
     }*/
 
-//    virtual bool VisitCallExpr(CallExpr *call) {
-//
-//		clang::SourceManager &sm = rewriter.getSourceMgr();
-//        SourceLocation callStart = sm.getSpellingLoc(call->getLocStart());
-//        SourceLocation callEnd = sm.getSpellingLoc(call->getLocEnd());
-//
-//        SourceLocation returnSemiLoc  = sm.getSpellingLoc(Lexer::findLocationAfterToken(callEnd,clang::tok::TokenKind::semi ,rewriter.getSourceMgr(), rewriter.getLangOpts(),false));
-//        if (returnSemiLoc.isValid())
-//        {
-//        	CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(callStart,returnSemiLoc);
-//        	std::string patternLine = Lexer::getSourceText(charSourceRange,rewriter.getSourceMgr(),rewriter.getLangOpts());
-//
-//        	std::replace(patternLine.begin(),patternLine.end(), '"','\'');
-//
-//        	std::string startPrint = "printf (\"call " + patternLine + " \\n\\r\");";
-//        	std::string endPrint = "printf (\"after " + patternLine + " \\n\\r\");";
-//
-//         	rewriter.InsertTextAfter(callStart, startPrint);
-//            rewriter.InsertTextBefore(returnSemiLoc, endPrint);
-//        }
-//
-//
-//
-//        //errs() << "** Rewrote function call\n";
-//        return true;
-//    }
+   virtual bool VisitCallExpr(CallExpr *call) {
+
+
+    if (call != NULL){
+		clang::SourceManager &sm = rewriter.getSourceMgr();
+		clang::SourceLocation callStart = sm.getSpellingLoc(call->getLocStart());
+
+		if (callStart.isValid() != true)
+		{
+			std::cout << "callStart is not valid" << std::endl;
+			return true;
+		}
+
+
+		//prevent from using an empty filename path
+		std::string shortFilePath = sm.getFilename(sm.getSpellingLoc(call->getLocStart())).str();
+		if (shortFilePath.size() == 0)
+			return true;
+
+		//check if file in project directory to prevent corrupting system files
+		std::string fullFilePath = MakeAbsolutePath(sm,sm.getFilename(sm.getSpellingLoc(call->getLocStart())));
+		if (fullFilePath.find(dirPath) != 0)
+			return true;
+
+
+        clang::QualType q = call->getType();
+        const clang::Type *t = q.getTypePtrOrNull();
+
+        if(t != NULL)
+        {
+            FunctionDecl *func = call->getDirectCallee(); //gives you callee function
+
+            if (func == NULL)
+            	return true;
+
+            long int pos = sm.getFileOffset(sm.getSpellingLoc(call->getLocStart()));
+
+            string callee = func->getNameInfo().getName().getAsString();
+            cout << func->getIdentifier()->isStr("printf") << fullFilePath << " " << callee << " is called at " << pos << std::endl;
+        }
+    }
+
+
+       // SourceLocation callEnd = sm.getSpellingLoc(call->getLocEnd());
+
+       // SourceLocation returnSemiLoc  = sm.getSpellingLoc(Lexer::findLocationAfterToken(callEnd,clang::tok::TokenKind::semi ,rewriter.getSourceMgr(), rewriter.getLangOpts(),false));
+       // if (returnSemiLoc.isValid())
+       // {
+       // 	CharSourceRange charSourceRange = clang::CharSourceRange::getCharRange(callStart,returnSemiLoc);
+       // 	std::string patternLine = Lexer::getSourceText(charSourceRange,rewriter.getSourceMgr(),rewriter.getLangOpts());
+
+       // 	std::replace(patternLine.begin(),patternLine.end(), '"','\'');
+
+       // 	std::string startPrint = "printf (\"call " + patternLine + " \\n\\r\");";
+       // 	std::string endPrint = "printf (\"after " + patternLine + " \\n\\r\");";
+
+       //  	rewriter.InsertTextAfter(callStart, startPrint);
+       //     rewriter.InsertTextBefore(returnSemiLoc, endPrint);
+       // }
+
+
+
+       //errs() << "** Rewrote function call\n";
+       return true;
+   }
 
 };
 
@@ -436,6 +832,18 @@ class ExampleFrontendAction : public ASTFrontendAction {
 public:
     virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef file) {
         fileName = std::string (file);
+
+        //Without next line clang will print errors when use gcc predefines and include search paths, for example if include <stddef.h>
+        //clang tool will print error:
+        ///usr/lib/gcc/i686-redhat-linux/5.3.1/include/stddef.h:328:24: error: cannot combine with previous 'int' declaration
+        //    specifier
+        //typedef __WCHAR_TYPE__ wchar_t;
+        //                       ^
+        //When clang reaches errors limit it says that it stops immediately, but I don't know whether it finishes file processing.
+        //Next line allows to suppress all warnings and errors but I don't know whether it changes clang behavior.
+        //Simple example with above error processed correctly despite error.
+        //CI.getDiagnostics().setClient(new IgnoringDiagConsumer());
+
         return (std::unique_ptr<ASTConsumer>)(new ExampleASTConsumer(&CI)); // pass CI pointer to ASTConsumer
     }
 
@@ -447,25 +855,140 @@ public:
 
     virtual bool BeginSourceFileAction   (CompilerInstance &  CI)
     {
-        // clang::PreprocessorOptions &po = CI.getPreprocessorOpts();
-        // po.addMacroDef(llvm::StringRef("DEFBEG_777=\"\""));
-        clang::Preprocessor &pp = CI.getPreprocessor();
-        std::string predefines = pp.getPredefines();
-        predefines.append("#define DEFBEG_777 \n");
-        predefines.append("#define DEFEND_777 \n");
-        predefines.append("#define DRS7  \n");
-        predefines.append("#define DRE7  \n");
-        pp.setPredefines(predefines);
-        //std::cout << pp.getPredefines() << " |||\n";
+   //      clang::Preprocessor &pp = CI.getPreprocessor();
+ 
+   //      std::unique_ptr<Find_Includes> find_includes_callback(new Find_Includes());
+   //      pp.addPPCallbacks(std::move(find_includes_callback));
+
+   //      std::unique_ptr<Find_Macros> find_macros_callback(new Find_Macros());
+   //      pp.addPPCallbacks(std::move(find_macros_callback));
+
+
+   //      std::string predefines = "";
+
+   //      std::string initialPredefines = pp.getPredefines();
+   //      long int pos = initialPredefines.find("# 1 \"<command line>\" 1");
+   //      if (pos != std::string::npos)
+   //      {
+   //        initialPredefines = initialPredefines.substr(pos);
+   //      }
+
+   //      initialPredefines.append("\r\n");
+   //      //std::cout << "Initial predefines : \r\n" << initialPredefines << std::endl;       
+
+   //      predefines.append("# 1 \"<built-in>\" 1");
+   //      predefines.append("\r\n");
+
+   //      for (unsigned int i = 0; i < compilerPredefines.size(); i++)
+   //      {
+   //        predefines.append(compilerPredefines[i]);
+   //        predefines.append("\r\n");
+   //      }
+   //      //predefines.append("#define DEFBEG_777 \n");
+   //      //predefines.append("#define DEFEND_777 \n");
+   //      //predefines.append("#define DRS7  \n");
+   //      //predefines.append("#undef __SSE__ \n");
+
+   //      predefines.append(initialPredefines);
+
+   //      //std::cout << "predefines : \r\n" << predefines << std::endl;
+   //      pp.setPredefines(predefines);
+   //      //std::cout << pp.getPredefines() << " |||\n";
+
+   //      clang::HeaderSearch &headerSearch = pp.getHeaderSearchInfo();
+   //      clang::HeaderSearchOptions &headerSearchOptions = headerSearch.getHeaderSearchOpts();
+   //      clang::HeaderSearchOptions newHeaderSearchOptions;
+   //      std::vector< clang::HeaderSearchOptions::Entry>  userEntries = headerSearchOptions.UserEntries;
+
+   //      int quotedPathsNum = 0;
+   //      int angledPathsNum = 0;
+
+   //      /*copy search paths that go from json compile commands*/
+   //      for (int i = 0; i < userEntries.size(); i++)
+   //      {
+
+		 //  if (clangSearchPaths.size() != 0)
+		 //  {
+			//   if (userEntries[i].Path.find(clangSearchPaths[0]) != std::string::npos)
+			//   {
+			// 	break; //break at clang includes
+			//   }
+			//   else
+			//   {
+			// 	newHeaderSearchOptions.UserEntries.push_back(userEntries[i]);
+			// 	quotedPathsNum++;
+			//   }
+		 //  }
+   //      }
+        
+   //      /*Add compiler search paths*/
+   //      angledPathsNum = 0;
+   //      for (unsigned int i = 0; i < compilerSearchPaths.size(); i++)
+   //      {
+			// newHeaderSearchOptions.AddPath(compilerSearchPaths[i].c_str(),
+			// 		clang::frontend::Angled,
+			// 		false,
+			// 		false);
+			// angledPathsNum++;
+   //      }
+   
+   //      headerSearchOptions.UserEntries = newHeaderSearchOptions.UserEntries;
+
+   //      std::vector<clang::DirectoryLookup> lookups;
+   //      for (auto entry : headerSearchOptions.UserEntries) {
+   //        //std::cout << entry.Path << std::endl;
+   //          clang::DirectoryLookup lookup = clang::DirectoryLookup(CI.getFileManager().getDirectory(entry.Path), clang::SrcMgr::CharacteristicKind::C_System, false);
+   //          if (!lookup.getDir())
+   //          {
+   //              std::cout << std::endl << "Error: Clang could not interpret path \"" << entry.Path << "\"" << std::endl;
+   //              continue; //skip not existed paths (in compile_coomands.json for mesa 17.2.4 was not existed path /mesa-17.2.4/src/gallium/drivers/softpipe/include)
+   //                        //that causes segmentation fault
+   //              //throw SpecificError<ClangCouldNotInterpretPath>(a, where, "Clang could not interpret path " + entry.Path);
+   //          }
+   //          lookups.push_back(lookup);
+   //      }
+   //      headerSearch.SetSearchPaths(lookups, quotedPathsNum, angledPathsNum, false);
+
+
+   //      // headerSearchOptions.UseStandardSystemIncludes = 0;
+   //      // headerSearchOptions.UseStandardCXXIncludes = 0;
+   //      // headerSearchOptions.UseBuiltinIncludes = 0;
+   //      // headerSearchOptions.UseLibcxx = 0;
+
+   //      // std::cout << "Start headers" << std::endl;
+   //      // for (int i = 0; i < headerSearchOptions.UserEntries.size(); i++)
+   //      // {
+   //      //   std::cout << headerSearchOptions.UserEntries[i].Path << std::endl;
+   //      // }
+
+   //      // std::vector< clang::HeaderSearchOptions::SystemHeaderPrefix>   systemHeaderPrefixes = headerSearchOptions.SystemHeaderPrefixes;
+   //      // for (int i = 0; i < systemHeaderPrefixes.size(); i++)
+   //      // {
+   //      //   std::cout << systemHeaderPrefixes[i].Prefix << std::endl;
+   //      // }
 
         return true;
     }
 
     virtual void EndSourceFileAction   ()
     {
+
+
+	// CompilerInstance &ci = getCompilerInstance();
+	// Preprocessor &pp = ci.getPreprocessor();
+	// Find_Includes *find_includes_callback = static_cast<Find_Includes*>(pp.getPPCallbacks());
+	// Find_Macros *find_macros_callback = static_cast<Find_Macros*>(pp.getPPCallbacks());
+    // // do whatever you want with the callback now
+    // if (find_includes_callback->has_include)
+    //   std::cout << "Found at least one include" << std::endl;
+
+    // if (find_macros_callback->has_macro)
+    //   std::cout << "Found at least one macro" << std::endl;
+
+
         // clang::PreprocessorOptions &po = CI.getPreprocessorOpts();
         // po.addMacroDef(llvm::StringRef("DEFBEG_777=\"\""));
-    	SourceManager &SM = rewriter.getSourceMgr();
+    	//SourceManager &SM = rewriter.getSourceMgr();
 //		llvm::errs() << "** EndSourceFileAction for: "
 //					 << SM.getFileEntryForID(SM.getMainFileID())->getName() << "\n";
 //		rewriter.getEditBuffer(rewriter.getSourceMgr().getMainFileID()).write(errs());
@@ -488,88 +1011,157 @@ int main(int argc, const char **argv) {
 	static std::unique_ptr< CompilationDatabase > cdb = clang::tooling::CompilationDatabase::loadFromDirectory(std::string(argv[2]),err_str);
 
 	std::vector<std::string> files = cdb->getAllFiles();
-	std::vector<CompileCommand> compileCommands = cdb->getCompileCommands(std::string(argv[1]));
-	std::string compile_command = "";
-	std::string command = "";
-	std::string directory = "";
-	std::string filename = "";
-	bool oCommandFound = false;
 
-	for (unsigned i = 0; i < compileCommands.size(); i++)
-	{
-		compile_command = "";
-		directory = compileCommands[i].Directory;
-		//std::cout << directory << std::endl;
-		filename = compileCommands[i].Filename;
-		//std::cout << filename << std::endl;
-		//std::cout << compileCommands[i].Output<< std::endl;
-		oCommandFound = false;
-		for (unsigned j = 0; j < compileCommands[i].CommandLine.size(); j++)
-		{
-			if (oCommandFound == true) //skip -o value
-			{
-				oCommandFound = false;
-				continue;
-			}
-			command = compileCommands[i].CommandLine[j];
-			if (command.compare("-o") == 0) //skip -o option
-			{
-				oCommandFound = true;
-				//std::cout << "found -o command" << std::endl;
-				continue;
-			}
-			if (command.find("-I",0) == 0)
-			{
-				//std::cout << "found -I command" << std::endl;
-				//std::cout << directory + "/" + command.substr(2) << std::endl;
-				command = "-I" + directory + "/" + command.substr(2);
-			}
-			if (command.find("-L",0) == 0) {
-				//std::cout << "found -L command" << std::endl;
-				command = "-L" + directory + "/" + command.substr(2);
-			}
-
-			if (j == compileCommands[i].CommandLine.size()-1) //file name
-			{
-				command = directory + "/" + command;
-				filename = command;
-			}
-
-			compile_command = compile_command + command + " ";
-
-			//printf ("%s\n\r", compileCommands[i].CommandLine[j].c_str());
-		}
-
-		compile_command = compile_command + "-E"; //prepocess file
-
-		//printf ("%s\n\r", compile_command.c_str());
-		std::string command_to_perform = compile_command + " > " + "tmpFile.txt";
-		system(command_to_perform.c_str());
-		command_to_perform = std::string("mv ") + std::string("tmpFile.txt ") + filename;
-		system(command_to_perform.c_str());
-		//		compile_command = compile_command + compileCommands[i];
-	}
-
-	printf ("%s\n\r", compile_command.c_str());
-
-//	for (unsigned i = 0; i < files.size(); i++)
+//	//start preprocess file
+//	std::vector<CompileCommand> compileCommands = cdb->getCompileCommands(std::string(argv[1]));
+//	std::string compile_command = "";
+//	std::string command = "";
+//	std::string directory = "";
+//	std::string filename = "";
+//	bool oCommandFound = false;
+//
+//	for (unsigned i = 0; i < compileCommands.size(); i++)
 //	{
-//		printf ("%s\n\r", files[i].c_str());
+//		compile_command = "";
+//		directory = compileCommands[i].Directory;
+//		//std::cout << directory << std::endl;
+//		filename = compileCommands[i].Filename;
+//		//std::cout << filename << std::endl;
+//		//std::cout << compileCommands[i].Output<< std::endl;
+//		oCommandFound = false;
+//		for (unsigned j = 0; j < compileCommands[i].CommandLine.size(); j++)
+//		{
+//			if (oCommandFound == true) //skip -o value
+//			{
+//				oCommandFound = false;
+//				continue;
+//			}
+//			command = compileCommands[i].CommandLine[j];
+//			if (command.compare("-o") == 0) //skip -o option
+//			{
+//				oCommandFound = true;
+//				//std::cout << "found -o command" << std::endl;
+//				continue;
+//			}
+//			if (command.find("-I",0) == 0)
+//			{
+//				//std::cout << "found -I command" << std::endl;
+//				//std::cout << directory + "/" + command.substr(2) << std::endl;
+//				command = "-I" + directory + "/" + command.substr(2);
+//			}
+//			if (command.find("-L",0) == 0) {
+//				//std::cout << "found -L command" << std::endl;
+//				command = "-L" + directory + "/" + command.substr(2);
+//			}
+//
+//			if (j == compileCommands[i].CommandLine.size()-1) //file name
+//			{
+//				command = directory + "/" + command;
+//				filename = command;
+//			}
+//
+//			compile_command = compile_command + command + " ";
+//
+//			//printf ("%s\n\r", compileCommands[i].CommandLine[j].c_str());
+//		}
+//
+//		compile_command = compile_command + "-E"; //prepocess file
+//
+//		//printf ("%s\n\r", compile_command.c_str());
+//		std::string command_to_perform = compile_command + " > " + "tmpFile.txt";
+//		system(command_to_perform.c_str());
+//		command_to_perform = std::string("mv ") + std::string("tmpFile.txt ") + filename;
+//		system(command_to_perform.c_str());
+//		//		compile_command = compile_command + compileCommands[i];
 //	}
+//
+//	printf ("%s\n\r", compile_command.c_str());
+//	//end preprocess file
+	//errs() << "* " << argv[1] << "* " << "\n\r";
 
+
+	for (unsigned i = 0; i < files.size(); i++)
+	{
+		printf ("%s\n\r", files[i].c_str());
+
+
+  //check compiler version from command
+  std::vector<CompileCommand> compileCommands = cdb->getCompileCommands(files[i].c_str());
+
+  // compilerPredefines.clear();
+  // if (compileCommands[0].CommandLine[0] == "cc")
+  // {
+
+  //     /*start get predefines for gcc compiler*/
+  //     if (getPredefines("gcc",compilerPredefines) == 0)
+  //     {
+  //       std::cout << "Error while trying to get predefines for gcc\r\n" << std::endl;
+  //       return 0;
+  //     }
+  //     /*end get predefines for gcc compiler*/
+  // }
+  // else if (compileCommands[0].CommandLine[0] == "c++")
+  // {
+  //     /*start get predefines for current compiler*/
+  //     if (getPredefines("g++",compilerPredefines) == 0)
+  //     {
+  //       std::cout << "Error while trying to get predefines for g++\r\n" << std::endl;
+  //       return 0;
+  //     }
+  //     /*end get predefines for current compiler*/
+  // }
+
+
+
+  // compilerSearchPaths.clear(); 
+  // if (compileCommands[0].CommandLine[0] == "cc")
+  // {
+  //   /*start get search paths for gcc compiler*/
+  //   if (getSearchPaths("gcc",compilerSearchPaths) == 0)
+  //   {
+  //     std::cout << "Error while trying to get search paths for gcc\r\n" << std::endl;
+  //     return 0;
+  //   }
+  //   /*end get predefines for gcc compiler*/
+  // }
+  // if (compileCommands[0].CommandLine[0] == "c++")
+  // {
+  //   /*start get search paths for g++ compiler*/
+  //   if (getSearchPaths("g++",compilerSearchPaths) == 0)
+  //   {
+  //     std::cout << "Error while trying to get search paths for g++\r\n" << std::endl;
+  //     return 0;
+  //   }
+  //   /*end get predefines for g++ compiler*/
+  // }
+
+
+  // /*start get search paths for clang to exclude them from header search options later*/
+  // clangSearchPaths.clear();
+  // if (getSearchPaths("clang",clangSearchPaths) == 0)
+  // {
+  //   std::cout << "Error while trying to get search paths for gcc\r\n" << std::endl;
+  //   return 0;
+  // }
+  // /*end get predefines for clang*/
+
+
+
+
+		ClangTool Tool(*cdb, files.at(i));
+
+		replacements.clear();
     // create a new Clang Tool instance (a LibTooling environment)
-    errs() << "* " << argv[1] << "* " << "\n\r";
-	ClangTool Tool(*cdb, std::string(argv[1]));
+
+	//ClangTool Tool(*cdb, std::string(argv[1]));
 //    ClangTool Tool(*cdb, files.at(i));
 //	RefactoringTool Tool(*cdb, std::string(argv[1]));
 
-    std::string filePath = std::string(argv[1]);
-    if (find_string(filePath,files) == 0)
-    {
-    	return 0;
-    }
-
-
+//    std::string filePath = std::string(argv[1]);
+//    if (find_string(filePath,files) == 0)
+//    {
+//    	return 0;
+//    }
 
     dirPath = std::string(argv[3]);
 
@@ -631,6 +1223,7 @@ int main(int argc, const char **argv) {
     {
         std::cout << "Error opening file: " << replacementsPath << "\n\r";
     }
+}
 
 
     //errs() << "End Tool \n\r";

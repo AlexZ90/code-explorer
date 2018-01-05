@@ -41,7 +41,7 @@ int main(int argc, const char **argv) {
 
     RPLSMTS_CONTAINER_TYPE replacements;
 
-    myfile.open(replacementsPath, std::ios::in);
+    myfile.open(replacementsPath, std::ios::in | std::ios::binary);
     if (myfile.is_open())
     {
 
@@ -71,31 +71,32 @@ int main(int argc, const char **argv) {
     }
     else
     {
-        std::cout << "Error opening replacements file: " << replacementsPath << "\n\r";
+        std::cout << "Error opening replacements file: " << replacementsPath << std::endl;
         return 0;
     }
 
-    myfile.open(resultPath, std::ios::in | std::ios::out | std::ios::trunc);
+    myfile.open(resultPath, std::ios::in | std::ios::out | std::ios::trunc | std::ios::binary);
     if (myfile.is_open())
     {
         for (RPLSMTS_CONTAINER_TYPE::iterator it = replacements.begin(); it != replacements.end(); ++it)
         {
-            myfile << "file:" << (*it).first << "\n\r";
+            myfile << "file:" << (*it).first << std::endl;
             std::vector<Rplsmt> rplsmtsList = (*it).second;
             std::sort(rplsmtsList.begin(),rplsmtsList.end(),Rplsmt::rplsmtSmallerOrEqual);
             for (auto i = 0; i < rplsmtsList.size(); i++)
             {
-                myfile << rplsmtsList.at(i) << "\n\r";
+                myfile << rplsmtsList.at(i) << "\n";
             }
         }
         myfile.close();
     }
     else
     {
-        std::cout << "Error opening result replacements file: " << resultPath << "\n\r";
+        std::cout << "Error opening result replacements file: " << resultPath << std::endl;
         return 0;
     }
 
+    printf ("%s %ld\r\n", __FILE__,__LINE__);
 
     /* Вставка текста в файлы в соответствии со сгенерированными правилами. */
 
@@ -103,7 +104,7 @@ int main(int argc, const char **argv) {
     myfile.open(resultPath, std::ios::in);
     if (!myfile.is_open())
     {
-        std::cout << "Error opening result replacements file: " << resultPath << "\n\r";
+        std::cout << "Error opening result replacements file: " << resultPath << std::endl;
         return 0;
     }
 
@@ -112,7 +113,7 @@ int main(int argc, const char **argv) {
         if (!std::getline(myfile,line))
         {
             myfile.close();
-            std::cout << "File with replacements finished\n\r";
+            std::cout << "File with replacements finished" << std::endl;
             return -1;
         }
         else if (line.find(":") != std::string::npos)
@@ -126,14 +127,14 @@ int main(int argc, const char **argv) {
     curProcFile.open(curProcFilePath, std::ios::in | std::ios::binary);
     if (!curProcFile.is_open())
     {
-        std::cout << "Error opening curProcFile file: " << curProcFilePath << "\n\r";
+        std::cout << "Error opening curProcFile file: " << curProcFilePath << std::endl;
         return 0;
     }
 
     tmpFile.open(tmpFilePath, std::ios::out | std::ios::trunc | std::ios::binary);
     if (!tmpFile.is_open())
     {
-        std::cout << "Error opening tmpFile file: " << tmpFilePath << "\n\r";
+        std::cout << "Error opening tmpFile file: " << tmpFilePath << std::endl;
         return 0;
     }
 
@@ -180,7 +181,7 @@ int main(int argc, const char **argv) {
 
             if ((myfile.rdstate() & std::ifstream::eofbit) != 0 )
             {
-                std::cout << "End of replacement\n\r";
+                std::cout << "End of replacement" << std::endl;
                 return 0;
             }
             else
@@ -190,14 +191,14 @@ int main(int argc, const char **argv) {
                 curProcFile.open(curProcFilePath, std::ios::in | std::ios::binary);
                 if (!curProcFile.is_open())
                 {
-                    std::cout << "Error opening curProcFile file: " << curProcFilePath << "\n\r";
+                    std::cout << "Error opening curProcFile file: " << curProcFilePath << std::endl;
                     return 0;
                 }
 
                 tmpFile.open(tmpFilePath, std::ios::out | std::ios::trunc | std::ios::binary);
                 if (!tmpFile.is_open())
                 {
-                    std::cout << "Error opening tmpFile file: " << tmpFilePath << "\n\r";
+                    std::cout << "Error opening tmpFile file: " << tmpFilePath << std::endl;
                     return 0;
                 }  
 
